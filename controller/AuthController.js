@@ -61,7 +61,7 @@ const loginadmin = async (req, res) => {
         return res.status(400).json({message: "incorrect details"});
     }
 
-    const token = jwt.sign({ id: user.userid, role: "admin"}, "secret", {expiresIn: "1h"});
+    const token = jwt.sign({ id: user.userid, role: "admin"}, process.env.JWTS, {expiresIn: "1h"});
 
     res.cookie('access_token', token, { 
         httpOnly: true, 
@@ -96,7 +96,7 @@ const logincustomer = async (req, res) => {
         return res.status(400).json({message: "incorrect details"});
     }
 
-    const token = jwt.sign({ id: user.userid, role: "customer" }, "secret", {expiresIn: "1h"});
+    const token = jwt.sign({ id: user.userid, role: "customer" }, process.env.JWTS, {expiresIn: "1h"});
 
     console.log(token);
     
