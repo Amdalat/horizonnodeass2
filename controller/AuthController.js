@@ -4,6 +4,36 @@ const User = require("../model/UserModel");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+const createadmin = async (req, res) => {
+    const {email, password, name, age} = req.body;
+    console.log(email, password, name, age);
+
+    if (!email || !password || !name || !age) {
+        return res.status(400).json({message: "fill in the details"});
+    }
+
+    const inemail = await Auth.findOne({email});
+
+    if (inemail) {
+        return res.status(400).json({message: "email exists"});
+    }
+
+    const hashedpassword = await bcrypt.hashSync(password, 10);
+    const user = new User({name, age });
+
+    try {
+        const saveduser = await user.save();
+
+        const authuser = new Auth({email, password:hashedpassword, role:"admin", userid: saveduser._id });
+        console.log(authuser);
+        
+        const savedauth = await authuser.save();
+        res.status(201).json({message: "Sign up successful", savedauth});
+    } catch (err) {
+        res.status(500).json({message: "Error signing up", err: err.message});
+    } 
+}
+
 const createmanager = async (req, res) => {
     const {email, password, name, age} = req.body;
     console.log(email, password, name, age);
@@ -30,6 +60,34 @@ const createmanager = async (req, res) => {
         const savedauth = await authuser.save();
         res.status(201).json({message: "Sign up successful", savedauth});
     } catch (err) {
+        res.status(500).json({message: "Error signing up", err: err.message});
+    } 
+}
+
+const createcustomer = async (req, res) => {
+    const {email, password, name, age} = req.body;
+    console.log(email, password);
+
+    if (!email || !password || !name || !age) {
+        return res.status(400).json({message: "fill in the details"});
+    }
+
+    const inemail = await Auth.findOne({email});
+
+    if (inemail) {
+        return res.status(400).json({message: "email exists"});
+    }
+
+    const hashedpassword = await bcrypt.hashSync(password, 10);
+    const user = new User({name, age });
+
+    try {
+        const saveduser = await user.save();
+
+        const authuser = new Auth({email, password:hashedpassword, role:"customer", userid: saveduser._id });
+        const savedauth = await authuser.save();
+        res.status(201).json({message: "Sign up successful", savedauth});
+    } catch (error) {
         res.status(500).json({message: "Error signing up", err: err.message});
     } 
     
@@ -61,7 +119,7 @@ const loginadmin = async (req, res) => {
         return res.status(400).json({message: "incorrect details"});
     }
 
-    const token = jwt.sign({ id: user.userid, role: "admin"}, process.env.JWTS, {expiresIn: "1h"});
+    const token = jwt.sign({ id: user.userid, role: user.role}, process.env.JWTS, {expiresIn: "1h"});
 
     res.cookie('access_token', token, { 
         httpOnly: true, 
@@ -110,34 +168,6 @@ const logincustomer = async (req, res) => {
     return res.status(200).json({ message: "SignIn Successful", token });
 }
 
-const createcustomer = async (req, res) => {
-    const {email, password, name, age} = req.body;
-    console.log(email, password);
-
-    if (!email || !password || !name || !age) {
-        return res.status(400).json({message: "fill in the details"});
-    }
-
-    const inemail = await Auth.findOne({email});
-
-    if (inemail) {
-        return res.status(400).json({message: "email exists"});
-    }
-
-    const hashedpassword = await bcrypt.hashSync(password, 10);
-    const user = new User({name, age });
-
-    try {
-        const saveduser = await user.save();
-
-        const authuser = new Auth({email, password:hashedpassword, role:"customer", userid: saveduser._id });
-        const savedauth = await authuser.save();
-        res.status(201).json({message: "Sign up successful", savedauth});
-    } catch (error) {
-        res.status(500).json({message: "Error signing up", err: err.message});
-    } 
-    
-}
 
 const getalladmins = async (req, res) => {
     const admins = await Auth.find({role: "admin"});
@@ -200,4 +230,4 @@ const deleteadmin = async (req, res) => {
   }
 };
 
-module.exports = { createmanager, loginadmin, logincustomer, createcustomer, getalladmins, getadminsbyrole, getadmin, updateadmin, deleteadmin };
+module.exports = { createadmin, createmanager, loginadmin, logincustomer, createcustomer, getalladmins, getadminsbyrole, getadmin, updateadmin, deleteadmin };

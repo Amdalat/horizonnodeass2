@@ -8,6 +8,8 @@ const authSchema = new mongoose.Schema({
 
 }, {timestamps: true});
 
+//you could also create seperate schema for each role
+
 const Auth = mongoose.model("Auth", authSchema);
 
 module.exports = Auth;

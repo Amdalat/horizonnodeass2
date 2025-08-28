@@ -1,32 +1,45 @@
-const Product = require("../model/ProductModel");
+const {Product, Category, Cart, Discount, Order} = require("../model/ProductModel");
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const createproduct = async (req, res) => {
-    const {name, producer, category, info, image} = req.body;
+    const {name, producer, category, info, price, stock, size} = req.body;
     console.log(req.body);
 
-    if (!name || !producer || !category || !info ) {
+    if (!name || !producer || !category || !info || !price|| !stock|| !size) {
         return res.status(400).json({message: "fill in the details"});
     }
 
-    const inproduct = await Product.findOne({name});
-
-    if (inproduct) {
+    const product = await Product.findOne({name});
+    if (product) {
         return res.status(400).json({message: "product exists"});
     }
 
-    try {
-        const saveduser = await user.save();
+    console.log(category.toLowerCase());
+    const cat = await Category.findOne({name: category.toLowerCase()});
+    if (!cat) {
+        return res.status(400).json({message: "category doesnt exist"});
+    }
 
-        const authuser = new Auth({email, password:hashedpassword, role:"manager", userid: saveduser._id });
-        console.log(authuser);
-        
-        const savedauth = await authuser.save();
-        res.status(201).json({message: "Sign up successful", savedauth});
+    //for size
+
+    try {
+        const slug = name.split(" ").join("_").toLowerCase().replace(/[^a-z0-9]/g, '');
+        const savedproduct = new Product({
+            ...req.body,
+            category: cat._id,
+            slug,
+            image: req.file ? req.file.path : ''
+        });
+
+        console.log(savedproduct);
+
+        const productsaved = await savedproduct.save();
+
+        res.status(201).json({message: "Product created successfully", productsaved});
     } catch (err) {
-        res.status(500).json({message: "Error signing up", err: err.message});
+        res.status(500).json({message: "Error creating project", err: err.message});
     } 
     
 }
@@ -58,111 +71,6 @@ const deleteproduct = async (req, res) => {
   }
 };
 
-
-const loginadmin = async (req, res) => {
-    const {email, password} = req.body;
-    console.log(email, password);
-
-    if (!email || !password) {
-        return res.status(400).json({message: "fill in the details"});
-    }
-
-    const user = await Auth.findOne({email});
-
-    if (!user) {
-        return res.status(400).json({message: "email doesn't exist"});
-    }
-
-    console.log(user.role);
-    
-    if (user.role != "admin" && user.role != "manager") {
-        return res.status(400).json({message: "No authorization"});
-    }
-
-    const checkedpassword = await bcrypt.compare(password, user.password);
-
-    if (!checkedpassword) {
-        return res.status(400).json({message: "incorrect details"});
-    }
-
-    const token = jwt.sign({ id: user.userid, role: "admin"}, "secret", {expiresIn: "1h"});
-
-    res.cookie('access_token', token, { 
-        httpOnly: true, 
-        path: '/',   
-        expires: new Date(Date.now() + 60*60*1000),
-    })
-
-    return res.status(200).json({ message: "SignIn Successful", token });
-}
-
-const logincustomer = async (req, res) => {
-    const {email, password} = req.body;
-    console.log(email, password);
-
-    if (!email || !password) {
-        return res.status(400).json({message: "fill in the details"});
-    }
-
-    const user = await Auth.findOne({email});
-
-    if (!user) {
-        return res.status(400).json({message: "email doesn't exist"});
-    }
-
-    if (user.role !== "customer") {
-        return res.status(400).json({message: "Not a customer"});
-    }
-
-    const checkedpassword = await bcrypt.compare(password, user.password);
-
-    if (!checkedpassword) {
-        return res.status(400).json({message: "incorrect details"});
-    }
-
-    const token = jwt.sign({ id: user.userid, role: "customer" }, "secret", {expiresIn: "1h"});
-
-    console.log(token);
-    
-
-    res.cookie('access_token', token, { 
-        httpOnly: true, 
-        path: '/',   
-        expires: new Date(Date.now() + 60*60*1000),
-    })
-
-    return res.status(200).json({ message: "SignIn Successful", token });
-}
-
-const createcustomer = async (req, res) => {
-    const {email, password, name, age} = req.body;
-    console.log(email, password);
-
-    if (!email || !password || !name || !age) {
-        return res.status(400).json({message: "fill in the details"});
-    }
-
-    const inemail = await Auth.findOne({email});
-
-    if (inemail) {
-        return res.status(400).json({message: "email exists"});
-    }
-
-    const hashedpassword = await bcrypt.hashSync(password, 10);
-    const user = new User({name, age });
-
-    try {
-        const saveduser = await user.save();
-
-        const authuser = new Auth({email, password:hashedpassword, role:"customer", userid: saveduser._id });
-        const savedauth = await authuser.save();
-        res.status(201).json({message: "Sign up successful", savedauth});
-    } catch (error) {
-        res.status(500).json({message: "Error signing up", err: err.message});
-    } 
-    
-}
-
 const getallproducts = async (req, res) => {
     const products = await Product.find();
 
@@ -176,6 +84,84 @@ const getallproducts = async (req, res) => {
         res.status(500).json({message: "Couldn't get products", err: err.message});
     } 
     
+}
+
+
+const createcat = async (req, res) => {
+    const {name} = req.body;
+    console.log(req.body);
+
+    if (!name) {
+        return res.status(400).json({message: "fill in the name"});
+    }
+
+    const cat = await Category.findOne({name});
+
+    if (cat) {
+        return res.status(400).json({message: "Category exists"});
+    }
+
+    try {
+        const slug = name.split(" ").join("_").toLowerCase().replace(/[^a-z0-9]/g, '');
+        const savedcat = new Category({
+            name,
+            slug,
+            icon: req.file ? req.file.path : ''
+        });
+
+        console.log(savedcat);
+
+        const catsaved = await savedcat.save();
+
+        res.status(201).json({message: "Category created successfully", catsaved});
+    } catch (err) {
+        res.status(500).json({message: "Error creating category", err: err.message});
+    } 
+    
+}
+
+const getcat = async (req, res) => {
+  try {
+    const cat = await Category.findById(req.params.id);
+    res.status(200).json(cat);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+const updatecat = async (req, res) => {
+  try {
+    const {name} = req.body;
+    const slug = name.split(" ").join("_").toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const updated = await Category.findByIdAndUpdate(req.params.id, {name, slug}, { new: true });
+    res.status(200).json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const deletecat = async (req, res) => {
+  try {
+    const deleted = await Category.findByIdAndDelete(req.params.id);
+    res.status(200).json(deleted);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+const getallcats = async (req, res) => {
+    const cats = await Category.find();
+
+    if (!cats) {
+        return res.status(400).json({message: "No category"});
+    }
+
+    try {
+        res.status(200).json({categoriescount: cats.length,Categories: cats});
+    } catch (error) {
+        res.status(500).json({message: "Couldn't get category", err: err.message});
+    } 
 }
 
 const getproductsbycat = async (req, res) => {
@@ -193,4 +179,4 @@ const getproductsbycat = async (req, res) => {
 }
 
 
-module.exports = { getallproducts, getproductsbycat, getproduct, updateproduct, deleteproduct };
+module.exports = {createproduct, getproduct, updateproduct, deleteproduct, getallproducts, createcat, getcat, updatecat, deletecat, getallcats };
